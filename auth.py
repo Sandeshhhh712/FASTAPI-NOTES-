@@ -24,7 +24,7 @@ def authenticate(username: str , password: str , session: Session):
     user = session.exec(select(User).where(User.username == username)).first()
     if not user or not verify_password(password, user.hashed_password):
         return None
-    return User
+    return user
         
 def create_access_token(data:dict , expires_delta : timedelta | None = None):
     to_encode = data.copy()
@@ -35,17 +35,29 @@ def create_access_token(data:dict , expires_delta : timedelta | None = None):
 #In jwt our token has 3 things , the signed user , expiry date and some random text 
 # in create access token function , we first copy the user data which will be signed in the token , for example username and then we add the expiry date and time in it and make it a signed token
 
-def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(get_session) , credential_exception = HTTPException(status_code= 401 , detail="Could't Validate credentials", headers={"WWW-Authenticate":"Bearer"})):
+def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)):
     try:
         payload = jwt.decode(token, SECRET_KEY,algorithms=[ALGORITHM])
         username : str = payload.get("sub")
         if username is None:
-            raise credential_exception
+             raise HTTPException(
+        status_code=401,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
     except JWTError:
-        raise credential_exception
+         raise HTTPException(
+        status_code=401,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
     user = session.exec(select(User).where(User.username == username)).first()
     if user is None:
-        raise credential_exception
+         raise HTTPException(
+        status_code=401,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
     return user
 
 #In here the oauth2_scheme is responsible for extracting token from the authorization header , the session establishes a database connection , and the credential_exception is for multiple error handles 
